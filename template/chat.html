@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Service Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Head section... -->
+    <div class="header">
+        <h1>Welcome to Our Customer Service</h1>
+        <p>How can we help you today?</p>
+    </div>
+
+    <div class="suggestions">
+        <button class="suggestion-btn" onclick="usePrompt('What services do you offer?')">Our Services</button>
+        <button class="suggestion-btn" onclick="usePrompt('What are your business hours?')">Business Hours</button>
+        <button class="suggestion-btn" onclick="usePrompt('What is your contact email?')">Contact Email</button>
+    </div>
+
+    <!-- Chat container and input elements... -->
+    <div id="chat-container">
+        <div id="messages"></div>
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input type="text" id="message-input" placeholder="Type your message...">
+            </div>
+            <button onclick="sendMessage()">Send</button>
+            <button id="new-chat-btn" onclick="startNewChat()">New Chat</button>
+        </div>
+    </div>
+
+    <!-- JavaScript functions -->
+    <script>
+        // Get references to the messages container and message input field
+        const messageContainer = document.getElementById("messages")
+        const messageInput = document.getElementById("message-input")
+
+        // Initialize variables to store the current chat and user IDs
+        let currentChatID = null;
+        let currentUserID = null;
+
+        // function fetchData() {
+        //     fetch('your_endpoint', {method: 'GET'})
+        //         .then(response => response.json()) // Convert the response to JSON
+        //         .then(data => {
+        //             console.log('Success:', data) // Do something with the data
+        //         })
+        //         .catch(error => {
+        //             console.error('Error occurred: ', error) // Handle any errors
+        //         });
+        // }
+
+        function startNewChat(){
+            // Clear the chat history
+            // messageContainer.innerHTML = ""
+
+            fetch('/api/create_chat', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    currentChatID = data.chat_id;
+                    currentUserID = data.user_id;
+                    messageContainer.innerHTML = '';
+                })
+                .catch(() => {
+                    alert('Error creating chat');
+                });
+        }
+
+        // Start a chat automatically when the page loads
+        document.addEventListener("DOMContentLoaded", startNewChat);
+
+        function appendMessage(role, content){
+            // This function creates a new message element, assigns it a CSS class based on the message's origin
+            // (user or assistant), appends it to the chat container, and ensures the chat view scrolls to the
+            // latest message.
+
+            // Create a new div element for the message
+            const messageDIV = document.createElement("div")
+
+            // Assign a class to the message based on its role (user or assistant)
+            messageDIV.className = `message ${role}`
+
+            // Set the text content of the message
+            messageDIV.textContent = content;
+
+            // Append the message to the messages container
+            messageContainer.appendChild(messageDIV)
+
+            // scroll the messages container to the bottom to show the latest message
+            messageContainer.scrollTop = messageContainer.scrollHeight
+        }
+
+        function sendMessage(){
+            // Building on the appendMessage function, the sendMessage function handles user input and updates the
+            // chat interface. It processes the user's message, displays it, and simulates a response from the
+            // assistant. This function is triggered when the "Send" button is clicked or when the user presses
+            // Enter without holding Shift.
+
+            // Retrieve and trim the input value
+            const message = messageInput.value.trim();
+            // If the message is empty, do not proceed
+            if (!message) return;
+            // Add user message to display
+            appendMessage('user', message)
+            // Clear the input field after adding the message
+            messageInput.value = '';
+
+            // For now, just echo the message back
+            // setTimeout(() => {
+            //     appendMessage('assistant', `You said: ${message}`)
+            // }, 500);
+
+            // Send Message to API
+            // the server endpoint /api/send_message where the message should be sent.
+            fetch('/api/send_message', {
+                method: 'POST', // We use POST again because we're sending data to the server.
+                headers: {
+                    'Content-Type': 'application/json' // This tells the server what kind of data we're sending.
+                    // Here, it's application/json, which means we're sending JSON data.
+                },
+                body: JSON.stringify({
+                    // We use JSON.stringify() to convert our data into a JSON string.
+                    // This includes the user_id, chat_id, and the message itself.
+                    user_id: currentUserID,
+                    chat_id: currentChatID,
+                    message: message
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // If the request is successful, the server's response is added to the chat interface.
+                    appendMessage('assistant', data.message)
+                })
+                .catch(() => {
+                    // If there's an error, an alert is shown to inform the user.
+                    alert('Error sending message.')
+                })
+        }
+
+        // function to use suggested prompts
+        function usePrompt(prompt){
+            messageInput.value = prompt;
+            sendMessage();
+        }
+
+        // Handle Enter Key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey){
+                // Prevent the default form submission behavior
+                e.preventDefault()
+                // Send the message when Enter key is pressed
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
